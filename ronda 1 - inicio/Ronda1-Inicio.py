@@ -4,96 +4,189 @@ import os
 
 pygame.init()
 
-RUTA_ARCHIVO_FONDO = "ciudad.jpg" 
+# ---------------------------- CONFIGURACIÓN DE RECURSOS Y CONSTANTES ----------------------------
+RUTA_ARCHIVO_FONDO = "ciudad.jpg"
+RUTA_JUGADOR = "UAIBOT.png"
+RUTA_AUTO = "auto.png"
+ENERGIA = 10
+
+FONDO_VEL_INICIAL = 3          # Velocidad base del fondo
+FONDO_VEL_MAX = 15             # Límite máximo de velocidad
+FONDO_AUMENTO_RATE = 0.002     # Cuánto aumenta la velocidad por frame
+
+AUTO_VEL_INICIAL = 7
+AUTO_AUMENTO_RATE = 0.002      # La velocidad del auto aumenta también
+
 COLOR_BLANCO = (255, 255, 255)
 COLOR_NEGRO = (0, 0, 0)
-COLOR_ROJO = (200, 0, 0)
-COLOR_AZUL = (0, 0, 200)
 COLOR_VERDE = (0, 200, 0)
+COLOR_ROJO = (200, 0, 0)
 COLOR_INSTRUCCION_FONDO = (50, 50, 50)
+
 PANTALLA_ANCHO = 1280
 PANTALLA_ALTO = 720
 PISO_POS_Y = 650
-clock = pygame.time.Clock()
 FPS = 60
 
 pantalla = pygame.display.set_mode((PANTALLA_ANCHO, PANTALLA_ALTO))
-pygame.display.set_caption("OFIRCA 2025 - Ronda 1 Inicio")
-
-if os.path.exists(RUTA_ARCHIVO_FONDO):
-    img_fondo = pygame.image.load(RUTA_ARCHIVO_FONDO)
-    img_fondo = pygame.transform.scale(img_fondo, (PANTALLA_ANCHO, PANTALLA_ALTO))
-else:
-    img_fondo = None
+pygame.display.set_caption("OFIRCA 2025 - Ronda 1 - Fondo animado")
 
 font_TxtInstrucciones = pygame.font.SysFont(None, 36)
-txtInstrucciones = font_TxtInstrucciones.render("Usa la barra espaciadora para saltar", True, COLOR_BLANCO)
-txtInstrucciones_desplazamiento = 10
-txtInstrucciones_rect = txtInstrucciones.get_rect()
-txtInstrucciones_rect.topleft = (10, 10)
-fondo_rect = pygame.Rect(txtInstrucciones_rect.left - txtInstrucciones_desplazamiento,
-                      txtInstrucciones_rect.top - txtInstrucciones_desplazamiento,
-                      txtInstrucciones_rect.width + 2 * txtInstrucciones_desplazamiento,
-                      txtInstrucciones_rect.height + 2 * txtInstrucciones_desplazamiento)
-
 font_TxtGameOver = pygame.font.SysFont(None, 100)
-txtGameOver = font_TxtGameOver.render("JUEGO TERMINADO", True, COLOR_ROJO)
-txtGameOver_rect = txtGameOver.get_rect(center=(PANTALLA_ANCHO // 2, (PANTALLA_ALTO // 2)-200))
+font_Energia = pygame.font.SysFont(None, 30)  # 🔹 fuente para el porcentaje
+clock = pygame.time.Clock()
 
-robot_tamaño = 50
+# ---------------------------- CARGA DE IMÁGENES ----------------------------
+try:
+    img_fondo = pygame.image.load(RUTA_ARCHIVO_FONDO)
+    img_fondo = pygame.transform.scale(img_fondo, (PANTALLA_ANCHO, PANTALLA_ALTO))
+except:
+    img_fondo = None
+    print("Error al cargar el fondo")
+
+try:
+    jugador = pygame.image.load(RUTA_JUGADOR)
+    jugador = pygame.transform.scale(jugador, (70, 70))
+except:
+    jugador = None
+    print("Error al cargar el jugador")
+
+try:
+    auto = pygame.image.load(RUTA_AUTO)
+    auto = pygame.transform.scale(auto, (100, 50))
+except:
+    auto = None
+    print("Error al cargar el auto")
+
+# ---------------------------- VARIABLES DE JUEGO ----------------------------
+fondo_x = 0
+fondo_vel = FONDO_VEL_INICIAL
+auto_vel_x = AUTO_VEL_INICIAL
+PUNTOS = 0
+
 robot_x = 100
-robot_y = PISO_POS_Y - robot_tamaño
+robot_y = PISO_POS_Y - 70
 
-auto_ancho = 100
-auto_alto = 40
 auto_x = PANTALLA_ANCHO
-auto_y = PISO_POS_Y - auto_alto
-auto_vel_x = 7
+auto_y = PISO_POS_Y - 50
 
-juegoEnEjecucion = True
+en_el_aire = False
+velocidad_vertical = 0
+fuerza_salto = -20
+gravedad = 1
+
 game_over = False
+juegoEnEjecucion = True
 
+# 🔹 Guardamos el tiempo de inicio
+inicio_tiempo = pygame.time.get_ticks()
+
+# Texto de instrucciones y game over
+txtInstrucciones = font_TxtInstrucciones.render("Usa la barra espaciadora para saltar", True, COLOR_BLANCO)
+txtInstrucciones_rect = txtInstrucciones.get_rect(topleft=(10, 10))
+txtGameOver = font_TxtGameOver.render("JUEGO TERMINADO", True, COLOR_ROJO)
+txtGameOver_rect = txtGameOver.get_rect(center=(PANTALLA_ANCHO // 2, PANTALLA_ALTO // 2 - 200))
+
+# ---------------------------- BUCLE PRINCIPAL ----------------------------
 while juegoEnEjecucion:
     clock.tick(FPS)
-
-    if img_fondo:
-        fondo_desplazamiento_y = -(PANTALLA_ALTO - PISO_POS_Y)
-        pantalla.blit(img_fondo, (0, fondo_desplazamiento_y))
-    else:
-        pantalla.fill(COLOR_BLANCO)
-
-  
-    piso_altura = PANTALLA_ALTO - PISO_POS_Y
-    piso_rect = pygame.Rect(0, PISO_POS_Y, PANTALLA_ANCHO, piso_altura)
-    pygame.draw.rect(pantalla, COLOR_VERDE, piso_rect)
-
-    pygame.draw.line(pantalla, COLOR_NEGRO, (0, PISO_POS_Y), (PANTALLA_ANCHO, PISO_POS_Y), 3)
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             juegoEnEjecucion = False
-        if game_over:
+
+        if not game_over:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and not en_el_aire:
+                en_el_aire = True
+                velocidad_vertical = fuerza_salto
+        else:
             if event.type == pygame.KEYDOWN:
                 juegoEnEjecucion = False
 
+    # ---------------------------- FONDO EN MOVIMIENTO ----------------------------
+    if img_fondo:
+        # Desplaza el fondo hacia la izquierda
+        fondo_x -= fondo_vel
+        # Dibuja dos fondos seguidos para efecto de scroll infinito
+        pantalla.blit(img_fondo, (fondo_x, 0))
+        pantalla.blit(img_fondo, (fondo_x + PANTALLA_ANCHO, 0))
+        # Reinicia la posición cuando el primer fondo sale de pantalla
+        if fondo_x <= -PANTALLA_ANCHO:
+            fondo_x = 0
+    else:
+        pantalla.fill(COLOR_BLANCO)
+
+    # ---------------------------- PISO ----------------------------
+    piso_altura = PANTALLA_ALTO - PISO_POS_Y
+    pygame.draw.rect(pantalla, COLOR_VERDE, (0, PISO_POS_Y, PANTALLA_ANCHO, piso_altura))
+    pygame.draw.line(pantalla, COLOR_NEGRO, (0, PISO_POS_Y), (PANTALLA_ANCHO, PISO_POS_Y), 3)
+
+    # ---------------------------- MOVIMIENTO DEL ROBOT ----------------------------
     if not game_over:
-        keys = pygame.key.get_pressed()
-  
+        velocidad_vertical += gravedad
+        robot_y += velocidad_vertical
+
+        if robot_y >= PISO_POS_Y - jugador.get_height():
+            robot_y = PISO_POS_Y - jugador.get_height()
+            en_el_aire = False
+            velocidad_vertical = 0
+
+        # ---------------------------- MOVIMIENTO DEL AUTO ----------------------------
         auto_x -= auto_vel_x
-        if auto_x < -auto_ancho:
-            auto_x = PANTALLA_ANCHO  
+        if auto_x < -auto.get_width():
+            auto_x = PANTALLA_ANCHO
+            PUNTOS += 1
 
-        robot_rect = pygame.Rect(robot_x, robot_y, robot_tamaño, robot_tamaño)
-        auto_rect = pygame.Rect(auto_x, auto_y, auto_ancho, auto_alto)
+        # ---------------------------- AUMENTO DE VELOCIDAD CON EL TIEMPO ----------------------------
+        if fondo_vel < FONDO_VEL_MAX:
+            fondo_vel += FONDO_AUMENTO_RATE
+            auto_vel_x += AUTO_AUMENTO_RATE
 
-    robot_rect = pygame.Rect(robot_x, robot_y, robot_tamaño, robot_tamaño)
-    auto_rect = pygame.Rect(auto_x, auto_y, auto_ancho, auto_alto)
-    pygame.draw.rect(pantalla, COLOR_AZUL, robot_rect)
-    pygame.draw.rect(pantalla, COLOR_ROJO, auto_rect)
+        # ---------------------------- DIBUJO DE ENTIDADES ----------------------------
+        robot_rect = pantalla.blit(jugador, (robot_x, robot_y))
+        auto_rect = pantalla.blit(auto, (auto_x, auto_y))
+
+        # ---------------------------- COLISIÓN ----------------------------
+        if robot_rect.colliderect(auto_rect):
+            game_over = True
+        if not game_over:
+            tiempo_transcurrido = (pygame.time.get_ticks() - inicio_tiempo) / 1000
+            tiempo_restante = max(0, ENERGIA - tiempo_transcurrido)
+            porcentaje = tiempo_restante / ENERGIA
+
+            # Si se acaba el tiempo → fin del juego
+            if tiempo_restante <= 0:
+                game_over = True
+
+            # Dimensiones y posición de la barra
+            barra_ancho = 300
+            barra_alto = 30
+            barra_x = 20
+            barra_y = 60
+
+            # Fondo gris oscuro
+            pygame.draw.rect(pantalla, (80, 80, 80), (barra_x, barra_y, barra_ancho, barra_alto))
+            # Parte verde proporcional al tiempo restante
+            pygame.draw.rect(pantalla, COLOR_VERDE, (barra_x, barra_y, barra_ancho * porcentaje, barra_alto))
+
+            # Texto del porcentaje
+            texto_energia = font_Energia.render(f"{int(porcentaje * 60)}%", True, COLOR_BLANCO)
+            texto_rect = texto_energia.get_rect(center=(barra_x + barra_ancho / 2, barra_y + barra_alto / 2))
+            pantalla.blit(texto_energia, texto_rect)
+
+
+
+    # ---------------------------- INTERFAZ ----------------------------
+    puntos_text = font_TxtInstrucciones.render(f"Puntos: {PUNTOS}", True, COLOR_BLANCO)
+    pantalla.blit(puntos_text, (PANTALLA_ANCHO - 180, 10))
 
     if not game_over:
-        pygame.draw.rect(pantalla, COLOR_INSTRUCCION_FONDO, fondo_rect)
+        pygame.draw.rect(pantalla, COLOR_INSTRUCCION_FONDO,
+                         (txtInstrucciones_rect.left - 10, txtInstrucciones_rect.top - 10,
+                          txtInstrucciones_rect.width + 20, txtInstrucciones_rect.height + 20))
         pantalla.blit(txtInstrucciones, txtInstrucciones_rect)
+    else:
+        pantalla.blit(txtGameOver, txtGameOver_rect)
 
     pygame.display.flip()
 
