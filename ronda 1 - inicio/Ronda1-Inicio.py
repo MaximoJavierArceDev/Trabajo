@@ -12,7 +12,7 @@ ENERGIA = 60
 fuente = pygame.font.SysFont('Arial', 30)
 FONDO_VEL_INICIAL = 3          # Velocidad base del fondo
 FONDO_VEL_MAX = 15             # Límite máximo de velocidad
-FONDO_AUMENTO_RATE = 0.002     # Cuánto aumenta la velocidad por frame
+FONDO_AUMENTO_RATE =0.00000001     # Cuánto aumenta la velocidad por frame
 
 AUTO_VEL_INICIAL = 7
 AUTO_AUMENTO_RATE = 0.002      # La velocidad del auto aumenta también
@@ -29,7 +29,12 @@ PISO_POS_Y = 650
 FPS = 60
 
 # Distancia inicial
-kilometros_restantes = 1.0  # El tope inicial es 1 km
+kilometros_restantes = 1  # El tope inicial es 1 km
+
+# Variables para mostrar mensaje de entrega
+mostrar_mensaje = False
+tiempo_mensaje = 0
+duracion_mensaje = 2000  # milisegundos
 
 # Tasa de decremento (0.03 km por segundo)
 tasa_decremento = 0.03
@@ -74,7 +79,7 @@ except:
 fondo_x = 0
 fondo_vel = FONDO_VEL_INICIAL
 auto_vel_x = AUTO_VEL_INICIAL
-PUNTOS = 0
+PAQUETES = 0
 
 robot_x = 100
 robot_y = PISO_POS_Y - 70
@@ -92,6 +97,7 @@ juegoEnEjecucion = True
 
 # 🔹 Guardamos el tiempo de inicio
 inicio_tiempo = pygame.time.get_ticks()
+energia_actual = ENERGIA  # energía dinámica que puede aumentar con los paquetes
 
 # Texto de instrucciones y game over
 txtInstrucciones = font_TxtInstrucciones.render("Usa la barra espaciadora para saltar", True, COLOR_BLANCO)
@@ -131,7 +137,26 @@ while juegoEnEjecucion:
     # 5. Asegurarse de que el contador no baje de cero
     if kilometros_restantes < 0:
         kilometros_restantes = 0
-        # Aquí puedes añadir código para finalizar el juego o la etapa.
+    
+    if kilometros_restantes <= 0:
+        PAQUETES += 1
+        kilometros_restantes = 1.0
+        fondo_vel += 1.05
+        auto_vel_x += 1.05
+        mostrar_mensaje = True
+        energia_actual *= 1.4  # 🔹 aumenta la energía un 40% al entregar un paquete
+        if PAQUETES >=2:
+         # 🔹 Reducir la distancia para el siguiente paquete
+            kilometros_restantes *= 0.2 # ahora será 90% de la anterior
+            fondo_vel += 1.05
+            auto_vel_x += 1.05
+    
+
+       
+    
+        
+    
+        tiempo_mensaje = pygame.time.get_ticks()
 
     # 6. Actualizar el tiempo anterior para el próximo ciclo
     tiempo_anterior = tiempo_actual
@@ -169,7 +194,7 @@ while juegoEnEjecucion:
         auto_x -= auto_vel_x
         if auto_x < -auto.get_width():
             auto_x = PANTALLA_ANCHO
-            PUNTOS += 1
+            
 
         # ---------------------------- AUMENTO DE VELOCIDAD CON EL TIEMPO ----------------------------
         if fondo_vel < FONDO_VEL_MAX:
@@ -181,12 +206,12 @@ while juegoEnEjecucion:
         auto_rect = pantalla.blit(auto, (auto_x, auto_y))
 
         # ---------------------------- COLISIÓN ----------------------------
-        if robot_rect.colliderect(auto_rect):
-            game_over = True
+        # if robot_rect.colliderect(auto_rect):
+        #     game_over = True
         if not game_over:
             tiempo_transcurrido = (pygame.time.get_ticks() - inicio_tiempo) / 1000
-            tiempo_restante = max(0, ENERGIA - tiempo_transcurrido)
-            porcentaje = tiempo_restante / ENERGIA
+            tiempo_restante = max(0, energia_actual - tiempo_transcurrido)
+            porcentaje = tiempo_restante / energia_actual
 
             # Si se acaba el tiempo → fin del juego
             if tiempo_restante <= 0:
@@ -211,18 +236,28 @@ while juegoEnEjecucion:
 
 
     # ---------------------------- INTERFAZ ----------------------------
-    puntos_text = font_TxtInstrucciones.render(f"Puntos: {PUNTOS}", True, COLOR_BLANCO)
+    puntos_text = font_TxtInstrucciones.render(f"Paquetes: {PAQUETES}", True, COLOR_BLANCO)
     pantalla.blit(puntos_text, (PANTALLA_ANCHO - 180, 10))
 
 
-    km_text = font_TxtInstrucciones.render(f"Kilómetros restantes: {kilometros_restantes:.2f} km", True, COLOR_BLANCO)
-    pantalla.blit(puntos_text, (PANTALLA_ANCHO - 180, 10))
+   
     
-        # Formatear el texto para mostrar solo 2 decimales
+    # Formatear el texto para mostrar solo 2 decimales
     texto_contador = "Distancia restante: {:.2f} km".format(kilometros_restantes)
     superficie_texto = fuente.render(texto_contador, True, (255, 255, 255)) # Color blanco
-    pantalla.blit(superficie_texto, (10, 10)) # Posición en la esquina superior izquierda
+    texto_rect = superficie_texto.get_rect(center=(PANTALLA_ANCHO // 2, 50))  # Centrado horizontal, 50 px desde arriba
+    pantalla.blit(superficie_texto, texto_rect)
 
+    # Mostrar mensaje de entrega si corresponde
+    if mostrar_mensaje:
+        tiempo_actual_ms = pygame.time.get_ticks()
+        if tiempo_actual_ms - tiempo_mensaje < duracion_mensaje:
+            texto_entrega = font_Energia.render("¡Paquete entregado!", True, COLOR_VERDE)
+            rect_entrega = texto_entrega.get_rect(center=(PANTALLA_ANCHO // 2, PANTALLA_ALTO // 2 - 100))
+            pantalla.blit(texto_entrega, rect_entrega)
+        else:
+            mostrar_mensaje = False
+    # (Eliminado el mensaje de paquete entregado anterior)
 
 
 
