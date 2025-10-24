@@ -9,7 +9,7 @@ RUTA_ARCHIVO_FONDO = "ciudad.jpg"
 RUTA_JUGADOR = "UAIBOT.png"
 RUTA_AUTO = "auto.png"
 ENERGIA = 60
-
+fuente = pygame.font.SysFont('Arial', 30)
 FONDO_VEL_INICIAL = 3          # Velocidad base del fondo
 FONDO_VEL_MAX = 15             # Límite máximo de velocidad
 FONDO_AUMENTO_RATE = 0.002     # Cuánto aumenta la velocidad por frame
@@ -27,6 +27,18 @@ PANTALLA_ANCHO = 1280
 PANTALLA_ALTO = 720
 PISO_POS_Y = 650
 FPS = 60
+
+# Distancia inicial
+kilometros_restantes = 1.0  # El tope inicial es 1 km
+
+# Tasa de decremento (0.03 km por segundo)
+tasa_decremento = 0.03
+
+# Variable para rastrear el tiempo de la última actualización
+# Se usará para calcular el tiempo transcurrido
+tiempo_anterior = pygame.time.get_ticks() / 1000.0
+
+
 
 pantalla = pygame.display.set_mode((PANTALLA_ANCHO, PANTALLA_ALTO))
 pygame.display.set_caption("OFIRCA 2025 - Ronda 1 - Fondo animado")
@@ -91,6 +103,19 @@ txtGameOver_rect = txtGameOver.get_rect(center=(PANTALLA_ANCHO // 2, PANTALLA_AL
 while juegoEnEjecucion:
     clock.tick(FPS)
 
+    # 1. Obtener el tiempo actual en segundos
+    tiempo_actual = pygame.time.get_ticks() / 1000.0
+
+    # 2. Calcular el tiempo transcurrido desde la última actualización
+    tiempo_delta = tiempo_actual - tiempo_anterior
+
+    # 3. Calcular la cantidad de kilómetros a restar
+    # (Tasa por segundo) * (Tiempo transcurrido en segundos)
+    decremento = tasa_decremento * tiempo_delta
+
+    # 4. Actualizar los kilómetros restantes
+    kilometros_restantes -= decremento
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             juegoEnEjecucion = False
@@ -102,6 +127,15 @@ while juegoEnEjecucion:
         else:
             if event.type == pygame.KEYDOWN:
                 juegoEnEjecucion = False
+    # ---------------------------- CONTADOR DE KM ----------------------------
+    # 5. Asegurarse de que el contador no baje de cero
+    if kilometros_restantes < 0:
+        kilometros_restantes = 0
+        # Aquí puedes añadir código para finalizar el juego o la etapa.
+
+    # 6. Actualizar el tiempo anterior para el próximo ciclo
+    tiempo_anterior = tiempo_actual
+
 
     # ---------------------------- FONDO EN MOVIMIENTO ----------------------------
     if img_fondo:
@@ -180,6 +214,18 @@ while juegoEnEjecucion:
     puntos_text = font_TxtInstrucciones.render(f"Puntos: {PUNTOS}", True, COLOR_BLANCO)
     pantalla.blit(puntos_text, (PANTALLA_ANCHO - 180, 10))
 
+
+    km_text = font_TxtInstrucciones.render(f"Kilómetros restantes: {kilometros_restantes:.2f} km", True, COLOR_BLANCO)
+    pantalla.blit(puntos_text, (PANTALLA_ANCHO - 180, 10))
+    
+        # Formatear el texto para mostrar solo 2 decimales
+    texto_contador = "Distancia restante: {:.2f} km".format(kilometros_restantes)
+    superficie_texto = fuente.render(texto_contador, True, (255, 255, 255)) # Color blanco
+    pantalla.blit(superficie_texto, (10, 10)) # Posición en la esquina superior izquierda
+
+
+
+
     if not game_over:
         pygame.draw.rect(pantalla, COLOR_INSTRUCCION_FONDO,
                          (txtInstrucciones_rect.left - 10, txtInstrucciones_rect.top - 10,
@@ -189,6 +235,7 @@ while juegoEnEjecucion:
         pantalla.blit(txtGameOver, txtGameOver_rect)
 
     pygame.display.flip()
+
 
 pygame.quit()
 sys.exit()
