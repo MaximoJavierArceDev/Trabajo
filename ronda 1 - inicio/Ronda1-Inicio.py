@@ -8,7 +8,7 @@ pygame.init()
 RUTA_ARCHIVO_FONDO = "ciudad.jpg"
 RUTA_JUGADOR = "UAIBOT.png"
 RUTA_AUTO = "auto.png"
-ENERGIA = 10
+ENERGIA = 60
 
 FONDO_VEL_INICIAL = 3          # Velocidad base del fondo
 FONDO_VEL_MAX = 15             # Límite máximo de velocidad
