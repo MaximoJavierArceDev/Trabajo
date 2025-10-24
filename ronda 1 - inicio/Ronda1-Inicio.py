@@ -87,6 +87,13 @@ robot_y = PISO_POS_Y - 70
 auto_x = PANTALLA_ANCHO
 auto_y = PISO_POS_Y - 50
 
+# Variables para el auto enemigo
+auto_enemigo_color = (255, 0, 0)  # Rojo
+auto_enemigo_x = PANTALLA_ANCHO + 300  # Empieza un poco después del auto normal
+auto_enemigo_y = PISO_POS_Y - 50
+auto_enemigo_vel = auto_vel_x  # misma velocidad que el auto
+energia_reducida = 1  # cantidad de energía que resta al tocarlo
+
 en_el_aire = False
 velocidad_vertical = 0
 fuerza_salto = -20
@@ -96,6 +103,7 @@ game_over = False
 juegoEnEjecucion = True
 
 # 🔹 Guardamos el tiempo de inicio
+
 inicio_tiempo = pygame.time.get_ticks()
 energia_actual = ENERGIA  # energía dinámica que puede aumentar con los paquetes
 
@@ -144,19 +152,13 @@ while juegoEnEjecucion:
         fondo_vel += 1.05
         auto_vel_x += 1.05
         mostrar_mensaje = True
-        energia_actual *= 1.4  # 🔹 aumenta la energía un 40% al entregar un paquete
-        if PAQUETES >=2:
-         # 🔹 Reducir la distancia para el siguiente paquete
-            kilometros_restantes *= 0.2 # ahora será 90% de la anterior
+        energia_actual *= 1.4  # aumenta la energía un 40% al entregar un paquete
+        if PAQUETES >= 2:
+            kilometros_restantes *= 0.2  # reducir la distancia para el siguiente paquete
             fondo_vel += 1.05
             auto_vel_x += 1.05
-    
 
-       
-    
-        
-    
-        tiempo_mensaje = pygame.time.get_ticks()
+    tiempo_mensaje = pygame.time.get_ticks()
 
     # 6. Actualizar el tiempo anterior para el próximo ciclo
     tiempo_anterior = tiempo_actual
@@ -194,7 +196,14 @@ while juegoEnEjecucion:
         auto_x -= auto_vel_x
         if auto_x < -auto.get_width():
             auto_x = PANTALLA_ANCHO
-            
+
+        # Movimiento del auto enemigo solo después de 2 km
+        if PAQUETES >= 2 or kilometros_restantes <= 0.0:
+            auto_enemigo_x -= auto_enemigo_vel
+            if auto_enemigo_x < -100:  # reinicia cuando sale de pantalla
+                auto_enemigo_x = PANTALLA_ANCHO + 200
+                auto_enemigo_vel *= 1.05  # aumenta la velocidad del auto enemigo un 5% cada vez que reaparece
+
 
         # ---------------------------- AUMENTO DE VELOCIDAD CON EL TIEMPO ----------------------------
         if fondo_vel < FONDO_VEL_MAX:
@@ -204,14 +213,22 @@ while juegoEnEjecucion:
         # ---------------------------- DIBUJO DE ENTIDADES ----------------------------
         robot_rect = pantalla.blit(jugador, (robot_x, robot_y))
         auto_rect = pantalla.blit(auto, (auto_x, auto_y))
+        auto_enemigo_rect = pygame.draw.rect(pantalla, auto_enemigo_color,
+                                     (auto_enemigo_x, auto_enemigo_y, 100, 50))
+
 
         # ---------------------------- COLISIÓN ----------------------------
-        # if robot_rect.colliderect(auto_rect):
-        #     game_over = True
+        if robot_rect.colliderect(auto_rect):
+            game_over = True
+        if robot_rect.colliderect(auto_enemigo_rect):
+            energia_actual -= energia_reducida
+            if energia_actual < 0:
+                energia_actual = 0
+
         if not game_over:
             tiempo_transcurrido = (pygame.time.get_ticks() - inicio_tiempo) / 1000
             tiempo_restante = max(0, energia_actual - tiempo_transcurrido)
-            porcentaje = tiempo_restante / energia_actual
+            porcentaje = tiempo_restante / energia_actual if energia_actual > 0 else 0
 
             # Si se acaba el tiempo → fin del juego
             if tiempo_restante <= 0:
